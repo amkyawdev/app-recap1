@@ -19,6 +19,9 @@ const SubtitlesEditor = () => {
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingStatus, setProcessingStatus] = useState('')
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
+  const [showSubtitlePreview, setShowSubtitlePreview] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
+  
   const ffmpegRef = useRef(null)
   const videoRef = useRef(null)
   const nextId = useRef(4)
@@ -166,31 +169,92 @@ const SubtitlesEditor = () => {
               </div>
               <div className="card-body">
                 {!videoFile ? (
-                  <label className="d-block border border-2 border-dashed rounded-3 p-5 text-center cursor-pointer">
+                  <label className="d-block border border-2 border-dashed rounded-3 p-5 text-center cursor-pointer hover-border-primary transition">
                     <input type="file" accept="video/*" className="d-none" onChange={handleVideoUpload} />
                     <i className="bi bi-cloud-upload display-4 text-primary-custom mb-3 d-block"></i>
                     <p className="text-light-custom">Click to upload video</p>
+                    <p className="text-muted small">or drag and drop video file</p>
                   </label>
                 ) : (
                   <>
-                    <div className="video-preview mb-3">
-                      <video ref={videoRef} src={videoUrl} controls className="w-100 rounded-3" onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata} />
+                    {/* Video Player with Live Subtitle Overlay */}
+                    <div className="position-relative bg-black rounded-3 overflow-hidden mb-3">
+                      <video 
+                        ref={videoRef}
+                        src={videoUrl} 
+                        controls 
+                        className="w-100 d-block"
+                        onTimeUpdate={handleTimeUpdate}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                      />
+                      
+                      {/* Live Subtitle Overlay */}
+                      {showSubtitlePreview && currentSubId && (
+                        <div className="position-absolute bottom-0 start-0 end-0 p-3 text-center" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.9))' }}>
+                          <span className="text-white lead fw-bold" style={{ textShadow: '2px 2px 8px black, -1px -1px 4px black' }}>
+                            {subtitles.find(s => s.id === currentSubId)?.text}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="d-flex flex-wrap gap-2 mb-3">
-                      <input type="file" accept=".srt" className="d-none" id="srt-import" onChange={handleImportSRT} />
-                      <label htmlFor="srt-import" className="btn btn-secondary">
-                        <i className="bi bi-upload me-2"></i>Import SRT
-                      </label>
-                      <button onClick={handleExportSRT} className="btn btn-secondary">
-                        <i className="bi bi-download me-2"></i>Export SRT
+                    
+                    {/* Subtitle Preview Toggle */}
+                    <div className="d-flex justify-content-between align-items-center mb-3 p-2 bg-secondary rounded-3">
+                      <span className="text-light-custom small">
+                        <i className="bi bi-eye me-2"></i>Subtitle Preview
+                      </span>
+                      <div className="form-check form-switch mb-0">
+                        <input className="form-check-input" type="checkbox" checked={showSubtitlePreview} onChange={(e) => setShowSubtitlePreview(e.target.checked)} id="previewToggle" />
+                        <label className="form-check-label text-light-custom small ms-2" htmlFor="previewToggle">
+                          {showSubtitlePreview ? 'ON' : 'OFF'}
+                        </label>
+                      </div>
+                    </div>
+                    
+                    {/* Control Buttons */}
+                    <div className="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                      <button onClick={() => videoRef.current && (videoRef.current.currentTime = 0)} className="btn btn-secondary btn-sm">
+                        <i className="bi bi-skip-backward"></i>
+                      </button>
+                      <button onClick={() => currentSubId && seekToSubtitle({ start: subtitles.find(s => s.id === currentSubId)?.start || 0 })} className="btn btn-secondary btn-sm">
+                        <i className="bi bi-arrow-left"></i> Prev
+                      </button>
+                      <button onClick={() => videoRef.current && (videoRef.current.paused ? videoRef.current.play() : videoRef.current.pause())} className={`btn ${isPlaying ? 'btn-primary' : 'btn-secondary'}`}>
+                        <i className={`bi ${isPlaying ? 'bi-pause-fill' : 'bi-play-fill'}`}></i>
+                      </button>
+                      <button onClick={addSubtitle} className="btn btn-success btn-sm">
+                        <i className="bi bi-plus-lg me-1"></i>Add Sub
                       </button>
                     </div>
-                    <div className="bg-secondary rounded-3 p-4 text-center min-height-80">
-                      <p className="text-white lead">{currentSubId ? subtitles.find(s => s.id === currentSubId)?.text : '...'}</p>
+                    
+                    {/* Current Subtitle Display */}
+                    {currentSubId && (
+                      <div className="alert alert-warning mb-3">
+                        <i className="bi bi-chat-right-text me-2"></i>
+                        <strong>Current:</strong> {subtitles.find(s => s.id === currentSubId)?.text}
+                      </div>
+                    )}
+                    
+                    <div className="d-flex flex-wrap gap-2 mb-3">
+                      <input type="file" accept=".srt" className="d-none" id="srt-import" onChange={handleImportSRT} />
+                      <label htmlFor="srt-import" className="btn btn-outline-secondary btn-sm">
+                        <i className="bi bi-upload me-1"></i>Import SRT
+                      </label>
+                      <button onClick={handleExportSRT} className="btn btn-outline-secondary btn-sm">
+                        <i className="bi bi-download me-1"></i>Export SRT
+                      </button>
+                      <button onClick={handleBurnSubtitles} disabled={isProcessing} className="btn btn-success">
+                        <i className="bi bi-fire me-1"></i>Burn Subtitles
+                      </button>
                     </div>
-                    <button onClick={handleBurnSubtitles} disabled={isProcessing} className="btn btn-success w-100 mt-3">
-                      <i className="bi bi-fire me-2"></i>Burn Subtitles to Video
-                    </button>
+                    
+                    {/* File Info */}
+                    <div className="d-flex justify-content-between text-muted small">
+                      <span><i className="bi bi-file-earmark-video me-1"></i>{videoFile.name}</span>
+                      <span>{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    </div>
                   </>
                 )}
               </div>
