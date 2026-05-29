@@ -1,0 +1,5 @@
+{
+  "appId": "com.yourcompany.movierecap",
+  "appName": "MovieRecap Studio",
+  "webDir": "dist"
+}
