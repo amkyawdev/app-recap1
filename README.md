@@ -168,6 +168,36 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+## 📱 Mobile Apps (Capacitor)
+
+This project supports mobile app builds using Capacitor.
+
+### Capacitor Setup
+```bash
+# Initialize Capacitor
+npx cap init "MovieRecap Studio" "com.yourcompany.movierecap"
+
+# Add platforms
+npx cap add android
+npx cap add ios
+
+# Build and sync
+npm run build
+npx cap copy
+npx cap sync
+
+# Open in Android Studio
+npx cap open android
+```
+
+### Building APK
+```bash
+cd android
+./gradlew assembleRelease
+```
+
+APK will be located at: `android/app/build/outputs/apk/release/app-release.apk`
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
