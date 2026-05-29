@@ -5,14 +5,16 @@
 :root {
   --primary: #DC2626;
   --primary-dark: #B91C1C;
-  --secondary: #374151;
-  --dark: #111827;
-  --dark-light: #1F2937;
+  --secondary: #4B0082;
+  --dark: #1a0a2e;
+  --dark-light: #2d1b4e;
   --light: #9CA3AF;
   --success: #10B981;
   --warning: #F59E0B;
   --danger: #EF4444;
   --info: #3B82F6;
+  --purple-light: #7c3aed;
+  --purple-glow: #a855f7;
 }
 
 * {
@@ -38,10 +40,6 @@ body {
 .btn-primary:hover {
   background-color: var(--primary-dark) !important;
   border-color: var(--primary-dark) !important;
-}
-
-.btn-primary:active {
-  background-color: var(--primary-dark) !important;
 }
 
 .btn-outline-primary {
@@ -72,6 +70,10 @@ body {
   background-color: var(--primary) !important;
 }
 
+.bg-secondary {
+  background-color: var(--secondary) !important;
+}
+
 .text-primary-custom {
   color: var(--primary) !important;
 }
@@ -81,7 +83,7 @@ body {
 }
 
 .bg-dark-custom {
-  background-color: var(--dark);
+  background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 100%);
 }
 
 .bg-gray-dark {
@@ -94,8 +96,9 @@ body {
 
 .card {
   background-color: var(--dark-light) !important;
-  border: 1px solid var(--secondary) !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
   border-radius: 16px !important;
+  backdrop-filter: blur(10px);
 }
 
 .alert-info {
@@ -129,8 +132,8 @@ body {
 }
 
 .form-control:focus, .form-select:focus {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.25) !important;
+  border-color: var(--purple-light) !important;
+  box-shadow: 0 0 0 0.2rem rgba(124, 58, 237, 0.25) !important;
 }
 
 .progress {
@@ -139,7 +142,7 @@ body {
 }
 
 .progress-bar {
-  background-color: var(--primary) !important;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--purple-light) 100%) !important;
 }
 
 .badge {
@@ -148,7 +151,8 @@ body {
 
 /* Navbar */
 .navbar-dark {
-  background-color: var(--dark-light) !important;
+  background: linear-gradient(90deg, var(--dark) 0%, var(--dark-light) 100%) !important;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.3) !important;
 }
 
 .navbar-dark .navbar-brand {
@@ -162,7 +166,7 @@ body {
 
 .hover-lift:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
 }
 
 .hover-border-primary {
@@ -172,16 +176,18 @@ body {
 /* Upload Area */
 .upload-area {
   transition: all 0.3s ease;
+  border-color: rgba(124, 58, 237, 0.5) !important;
 }
 
 .upload-area:hover {
-  border-color: var(--primary) !important;
-  background: rgba(220, 38, 38, 0.05);
+  border-color: var(--purple-light) !important;
+  background: rgba(124, 58, 237, 0.05);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
 }
 
 /* Subtitle Item */
 .subtitle-item {
-  background: var(--secondary);
+  background: rgba(75, 0, 130, 0.5);
   border-radius: 12px;
   padding: 15px;
   cursor: pointer;
@@ -190,7 +196,7 @@ body {
 }
 
 .subtitle-item:hover {
-  background: #4b5563;
+  background: rgba(124, 58, 237, 0.3);
 }
 
 .subtitle-item.active {
@@ -205,7 +211,7 @@ body {
 
 /* Sidebar */
 .sidebar-menu {
-  background: var(--dark-light) !important;
+  background: linear-gradient(180deg, var(--dark) 0%, var(--dark-light) 100%) !important;
 }
 
 .nav-link {
@@ -213,7 +219,7 @@ body {
 }
 
 .nav-link:hover {
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(124, 58, 237, 0.2);
 }
 
 /* Video Preview */
@@ -253,15 +259,30 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: var(--purple-light);
 }
 
 /* Border */
 .border-secondary {
-  border-color: var(--secondary) !important;
+  border-color: rgba(124, 58, 237, 0.3) !important;
 }
 
 /* Shadows */
 .shadow-sm {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.2) !important;
+}
+
+/* Purple Glow Effects */
+.purple-glow {
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.5);
+}
+
+/* Hero Section Gradient */
+.hero-gradient {
+  background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 50%, var(--secondary) 100%);
+}
+
+/* Menu Button */
+.menu-toggle-btn {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--purple-light) 100%) !important;
 }
