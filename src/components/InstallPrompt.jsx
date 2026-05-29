@@ -7,98 +7,103 @@ const InstallPrompt = () => {
   const [isInstalling, setIsInstalling] = useState(false)
   const [installStatus, setInstallStatus] = useState('')
   const [permissionGranted, setPermissionGranted] = useState(false)
+  const [showPermDialog, setShowPermDialog] = useState(false)
 
   useEffect(() => {
-    // Check if app is installed
-    const isAppInstalled = localStorage.getItem('appInstalled')
-    if (!isAppInstalled) {
+    // Always show prompt on first visit
+    const hasInstalled = localStorage.getItem('appInstalled')
+    const hasPermission = localStorage.getItem('permissionGranted')
+    
+    if (!hasInstalled || !hasPermission) {
       setShowPrompt(true)
     }
     
-    // Check storage permission
     checkStoragePermission()
   }, [])
 
   const checkStoragePermission = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
-        // Try to write a test file
         await Filesystem.writeFile({
-          path: 'permission_test.txt',
+          path: 'test.txt',
           data: 'test',
           directory: Directory.Documents
         })
-        setPermissionGranted(true)
-        // Clean up test file
         await Filesystem.deleteFile({
-          path: 'permission_test.txt',
+          path: 'test.txt',
           directory: Directory.Documents
         })
+        setPermissionGranted(true)
+        localStorage.setItem('permissionGranted', 'true')
       } catch (error) {
-        console.log('Storage permission not granted:', error)
+        console.log('Permission check failed:', error)
         setPermissionGranted(false)
       }
     } else {
-      // Web platform - always have access
       setPermissionGranted(true)
+      localStorage.setItem('permissionGranted', 'true')
     }
   }
 
   const handleInstall = async () => {
     setIsInstalling(true)
-    setInstallStatus('Preparing installation...')
+    setInstallStatus('Requesting permissions...')
 
     try {
       if (Capacitor.isNativePlatform()) {
-        // Request storage permission
-        setInstallStatus('Requesting storage permission...')
         try {
           await Filesystem.writeFile({
-            path: 'install_test.txt',
-            data: 'MovieRecap Studio',
+            path: 'app_data.txt',
+            data: 'MovieRecap Studio v1.0',
             directory: Directory.Documents
           })
           await Filesystem.deleteFile({
-            path: 'install_test.txt',
+            path: 'app_data.txt',
             directory: Directory.Documents
           })
           setPermissionGranted(true)
-          setInstallStatus('Storage permission granted!')
+          setInstallStatus('✅ Storage permission granted!')
+          localStorage.setItem('permissionGranted', 'true')
         } catch (error) {
-          setInstallStatus('Storage permission required for video editing')
-          setPermissionGranted(false)
+          setShowPermDialog(true)
+          setInstallStatus('⚠️ Storage permission required')
+          setIsInstalling(false)
+          return
         }
       }
 
-      // Mark as installed
       localStorage.setItem('appInstalled', 'true')
-      setInstallStatus('Installation complete!')
+      setInstallStatus('✅ App installed successfully!')
       
       setTimeout(() => {
         setShowPrompt(false)
       }, 2000)
 
     } catch (error) {
-      setInstallStatus('Installation failed: ' + error.message)
+      setInstallStatus('❌ Installation failed')
     }
 
     setIsInstalling(false)
   }
 
   const handleDecline = () => {
-    setShowPrompt(false)
+    // Block usage if declined
+    setShowPrompt(true)
+    setInstallStatus('⚠️ Installation required to use app')
   }
 
   const handleSkip = () => {
+    // Only allow basic web usage
     localStorage.setItem('appInstalled', 'true')
+    localStorage.setItem('basicMode', 'true')
     setShowPrompt(false)
   }
 
   if (!showPrompt) return null
 
   return (
-    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ background: 'rgba(0,0,0,0.9)', zIndex: 9999 }}>
-      <div className="card shadow-lg" style={{ maxWidth: '450px', width: '90%' }}>
+    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ background: 'rgba(0,0,0,0.95)', zIndex: 9999 }}>
+      <div className="card shadow-lg" style={{ maxWidth: '480px', width: '90%' }}>
         <div className="card-body p-4">
           {/* Icon */}
           <div className="text-center mb-4">
@@ -106,42 +111,58 @@ const InstallPrompt = () => {
           </div>
 
           {/* Title */}
-          <h3 className="text-center mb-3">Install App</h3>
+          <h3 className="text-center mb-3">Install MovieRecap Studio</h3>
           
           {/* Description */}
           <p className="text-center text-muted mb-4">
-            Install MovieRecap Studio for better performance and offline access
+            Full app installation required for video editing features
           </p>
 
           {/* Features */}
-          <ul className="list-unstyled mb-4">
-            <li className="mb-2">
-              <i className="bi bi-check-circle text-success me-2"></i>
-              <span>Better video editing performance</span>
-            </li>
-            <li className="mb-2">
-              <i className="bi bi-check-circle text-success me-2"></i>
-              <span>Offline access to your projects</span>
-            </li>
-            <li className="mb-2">
-              <i className="bi bi-check-circle text-success me-2"></i>
-              <span>Storage permission for videos</span>
-            </li>
-          </ul>
+          <div className="bg-dark rounded-3 p-3 mb-4">
+            <ul className="list-unstyled mb-0">
+              <li className="mb-2 d-flex align-items-center">
+                <i className="bi bi-check-circle text-success me-3"></i>
+                <span>Video trimming & editing</span>
+              </li>
+              <li className="mb-2 d-flex align-items-center">
+                <i className="bi bi-check-circle text-success me-3"></i>
+                <span>Subtitle creation</span>
+              </li>
+              <li className="mb-2 d-flex align-items-center">
+                <i className="bi bi-check-circle text-success me-3"></i>
+                <span>Export at any resolution</span>
+              </li>
+              <li className="d-flex align-items-center">
+                <i className="bi bi-check-circle text-success me-3"></i>
+                <span>Storage access for videos</span>
+              </li>
+            </ul>
+          </div>
 
           {/* Permission Status */}
-          {Capacitor.isNativePlatform() && (
-            <div className={`alert mb-4 ${permissionGranted ? 'alert-success' : 'alert-warning'}`}>
-              <i className={`bi ${permissionGranted ? 'bi-shield-check' : 'bi-exclamation-triangle'} me-2`}></i>
-              {permissionGranted ? 'Storage Permission: Granted' : 'Storage Permission: Required'}
-            </div>
-          )}
+          <div className={`alert mb-4 ${permissionGranted ? 'alert-success' : 'alert-warning'}`}>
+            <i className={`bi ${permissionGranted ? 'bi-shield-check' : 'bi-exclamation-triangle'} me-2`}></i>
+            {permissionGranted ? 'Storage Permission: Granted' : 'Storage Permission: Required'}
+          </div>
 
           {/* Status */}
           {installStatus && (
             <div className="alert alert-info mb-4">
               <i className="bi bi-info-circle me-2"></i>
               {installStatus}
+            </div>
+          )}
+
+          {/* Permission Dialog */}
+          {showPermDialog && (
+            <div className="alert alert-warning mb-4">
+              <h6 className="mb-2"><i className="bi bi-exclamation-triangle me-2"></i>Permission Required</h6>
+              <p className="small mb-2">This app needs storage permission to save and process videos.</p>
+              <div className="d-flex gap-2">
+                <button onClick={() => { handleInstall(); setShowPermDialog(false) }} className="btn btn-sm btn-warning">Grant</button>
+                <button onClick={() => setShowPermDialog(false)} className="btn btn-sm btn-outline-secondary">Cancel</button>
+              </div>
             </div>
           )}
 
@@ -166,18 +187,11 @@ const InstallPrompt = () => {
             </button>
             
             <button 
-              className="btn btn-outline-secondary" 
+              className="btn btn-outline-primary" 
               onClick={handleSkip}
             >
-              <i className="bi bi-arrow-right me-2"></i>
+              <i className="bi bi-globe me-2"></i>
               Continue in Browser
-            </button>
-            
-            <button 
-              className="btn btn-link text-muted" 
-              onClick={handleDecline}
-            >
-              Not Now
             </button>
           </div>
         </div>

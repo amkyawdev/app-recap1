@@ -1,90 +1,82 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useWorkflow } from '../context/WorkflowContext'
 import { fetchFile } from '@ffmpeg/util'
 import { loadFFmpeg } from '../utils/ffmpegLoader'
 import LoadingAnimation from '../components/LoadingAnimation'
 
 const RenderPage = () => {
+  const navigate = useNavigate()
+  const { workflow, updateRenderSettings, resetWorkflow } = useWorkflow()
+  
   const [isRendering, setIsRendering] = useState(false)
   const [progress, setProgress] = useState(0)
   const [renderStatus, setRenderStatus] = useState('Ready')
-  const [videoFile, setVideoFile] = useState(null)
   const [isFFmpegLoaded, setIsFFmpegLoaded] = useState(false)
-  const [ffmpegError, setFfmpegError] = useState('')
   const ffmpegRef = useRef(null)
-  const fileInputRef = useRef(null)
-  const [resolution, setResolution] = useState('1080p')
-  const [format, setFormat] = useState('mp4')
-  const [quality, setQuality] = useState('high')
-  const [fps, setFps] = useState(30)
+  
+  const [resolution, setResolution] = useState(workflow.renderSettings?.resolution || '1080p')
+  const [format, setFormat] = useState(workflow.renderSettings?.format || 'mp4')
+  const [quality, setQuality] = useState(workflow.renderSettings?.quality || 'high')
+  const [fps, setFps] = useState(workflow.renderSettings?.fps || 30)
 
   useEffect(() => {
-    const loadFFmpegAsync = async () => {
+    const initFFmpeg = async () => {
       setRenderStatus('Loading FFmpeg...')
       try {
         const ffmpeg = await loadFFmpeg()
         ffmpegRef.current = ffmpeg
         setIsFFmpegLoaded(true)
-        setRenderStatus('Ready - Select a video to render')
-        console.log('[RenderPage] FFmpeg loaded successfully')
+        setRenderStatus('Ready - Preview and Export')
       } catch (error) {
-        console.error('[RenderPage] FFmpeg load failed:', error)
-        setFfmpegError(error.message)
-        setRenderStatus('FFmpeg failed - Web rendering available')
+        console.error('[Render] FFmpeg failed:', error)
+        setRenderStatus('Basic mode - Web export available')
       }
     }
-    loadFFmpegAsync()
+    initFFmpeg()
   }, [])
 
   const resolutions = {
-    '4k': { width: 3840, height: 2160, label: '4K' },
-    '1080p': { width: 1920, height: 1080, label: '1080p' },
-    '720p': { width: 1280, height: 720, label: '720p' },
-    '480p': { width: 854, height: 480, label: '480p' },
-    '360p': { width: 640, height: 360, label: '360p' }
+    '4k': { width: 3840, height: 2160 },
+    '1080p': { width: 1920, height: 1080 },
+    '720p': { width: 1280, height: 720 },
+    '480p': { width: 854, height: 480 },
   }
 
   const qualityPresets = {
-    high: { crf: 18, preset: 'slow', label: 'High' },
-    medium: { crf: 23, preset: 'medium', label: 'Medium' },
-    low: { crf: 28, preset: 'fast', label: 'Low' }
+    high: { crf: 18, preset: 'slow' },
+    medium: { crf: 23, preset: 'medium' },
+    low: { crf: 28, preset: 'fast' }
   }
 
-  const fpsOptions = [24, 30, 60]
-
-  const handleVideoUpload = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setVideoFile(file)
-      setRenderStatus(`Selected: ${file.name}`)
-    }
-  }
-
-  const handleClickUpload = () => {
-    fileInputRef.current?.click()
-  }
-
-  const startRender = async () => {
+  const handleStartRender = async () => {
+    const videoFile = workflow.videoFile
+    const subtitles = workflow.subtitles || []
+    
     if (!videoFile) {
-      setRenderStatus('Please select a video file')
+      setRenderStatus('No video file - Go back to editor')
       return
     }
-    
+
+    updateRenderSettings({ resolution, format, quality, fps })
+
     if (!ffmpegRef.current) {
-      // Web-based export without FFmpeg
+      // Web export fallback
       setIsRendering(true)
       setProgress(0)
-      setRenderStatus('Creating video...')
+      setRenderStatus('Preparing export...')
+      
       try {
         setProgress(50)
         const url = URL.createObjectURL(videoFile)
         const a = document.createElement('a')
         a.href = url
-        a.download = `movie-recap-${resolution}-${quality}.${format}`
+        a.download = `movie-recap-${resolution}.${format}`
         a.click()
         setProgress(100)
         setRenderStatus('Video exported (original quality)')
       } catch (error) {
-        setRenderStatus('Export failed: ' + error.message)
+        setRenderStatus('Export failed')
       }
       setIsRendering(false)
       return
@@ -93,36 +85,98 @@ const RenderPage = () => {
     setIsRendering(true)
     setProgress(0)
     setRenderStatus('Starting render...')
+
     try {
       const ffmpeg = ffmpegRef.current
       const res = resolutions[resolution]
       const qual = qualityPresets[quality]
+
+      // Create SRT file
+      const sorted = [...subtitles].sort((a, b) => a.start - b.start)
+      const srtContent = sorted.map((sub, i) => {
+        const formatSRT = (t) => {
+          const h = Math.floor(t / 3600)
+          const m = Math.floor((t % 3600) / 60)
+          const s = Math.floor(t % 60)
+          const ms = Math.floor((t % 1) * 1000)
+          return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')},${ms.toString().padStart(3,'0')}`
+        }
+        return `${i + 1}\n${formatSRT(sub.start)} --> ${formatSRT(sub.end)}\n${sub.text}`
+      }).join('\n\n')
+
       setProgress(5)
       setRenderStatus('Loading video...')
       await ffmpeg.writeFile('input.mp4', await fetchFile(videoFile))
+      
+      if (srtContent) {
+        await ffmpeg.writeFile('subtitles.srt', new TextEncoder().encode(srtContent))
+      }
+
       setProgress(15)
-      setRenderStatus('Building render command...')
-      const args = ['-i', 'input.mp4', '-vf', `scale=${res.width}:${res.height}`, '-r', fps.toString(), '-c:v', 'libx264', '-preset', qual.preset, '-crf', qual.crf.toString(), '-c:a', 'aac', '-b:a', '192k', 'output.mp4']
+      setRenderStatus('Processing...')
+
+      let args
+      if (srtContent && subtitles.length > 0) {
+        args = [
+          '-i', 'input.mp4',
+          '-vf', `scale=${res.width}:${res.height},subtitles=subtitles.srt`,
+          '-r', fps.toString(),
+          '-c:v', 'libx264',
+          '-preset', qual.preset,
+          '-crf', qual.crf.toString(),
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          'output.mp4'
+        ]
+      } else {
+        args = [
+          '-i', 'input.mp4',
+          '-vf', `scale=${res.width}:${res.height}`,
+          '-r', fps.toString(),
+          '-c:v', 'libx264',
+          '-preset', qual.preset,
+          '-crf', qual.crf.toString(),
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          'output.mp4'
+        ]
+      }
+
       setProgress(20)
-      setRenderStatus('Rendering video...')
       await ffmpeg.exec(args, undefined, undefined, (p) => {
         setProgress(20 + Math.round(p * 70))
         setRenderStatus(`Rendering... ${20 + Math.round(p * 70)}%`)
       })
+
       setProgress(90)
       setRenderStatus('Finalizing...')
       const data = await ffmpeg.readFile('output.mp4')
       const blob = new Blob([data], { type: 'video/mp4' })
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a'); a.href = url; a.download = `movie-recap-${resolution}-${quality}.${format}`; a.click()
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `movie-recap-${resolution}-${quality}.${format}`
+      a.click()
+
       setProgress(100)
       setRenderStatus('Render complete!')
+      
       setTimeout(() => setIsRendering(false), 2000)
     } catch (error) {
-      console.error('Render error:', error)
+      console.error('[Render] Error:', error)
       setRenderStatus('Render failed: ' + error.message)
       setIsRendering(false)
     }
+  }
+
+  const handleBack = () => {
+    updateRenderSettings({ resolution, format, quality, fps })
+    navigate('/subtitles')
+  }
+
+  const handleNewProject = () => {
+    resetWorkflow()
+    navigate('/editor')
   }
 
   return (
@@ -130,130 +184,145 @@ const RenderPage = () => {
       <div className="container py-4">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h1 className="text-white h2 mb-0">
-            <i className="bi bi-gpu me-2 text-primary-custom"></i>Render Video
-          </h1>
-          <span className={`badge ${isFFmpegLoaded ? 'bg-success' : 'bg-warning'}`}>
-            <i className={`bi ${isFFmpegLoaded ? 'bi-check-circle' : 'bi-hourglass-split'} me-1`}></i>
-            {isFFmpegLoaded ? 'FFmpeg Ready' : 'Loading...'}
+          <div>
+            <h1 className="text-white h2 mb-0">
+              <i className="bi bi-gpu me-2 text-primary-custom"></i>Render Video
+            </h1>
+            <p className="text-muted small mb-0">Step 3 of 3 - Preview and Export</p>
+          </div>
+          <span className={`badge ${isFFmpegLoaded ? 'bg-success' : 'bg-secondary'}`}>
+            <i className={`bi ${isFFmpegLoaded ? 'bi-check-circle' : 'bi-exclamation-circle'} me-1`}></i>
+            {isFFmpegLoaded ? 'FFmpeg Ready' : 'Basic Mode'}
           </span>
         </div>
 
+        {/* Progress Steps */}
+        <div className="d-flex align-items-center justify-content-center mb-4">
+          <div className="px-3 py-2 bg-secondary rounded-start">1. Video</div>
+          <div className="px-3 py-2 bg-secondary">2. Subtitles</div>
+          <div className="px-3 py-2 bg-primary rounded-end">3. Render</div>
+        </div>
+
         {/* Status */}
-        <div className={`alert ${ffmpegError ? 'alert-warning' : renderStatus.includes('fail') || renderStatus.includes('error') ? 'alert-danger' : 'alert-info'} mb-4`}>
+        <div className={`alert ${renderStatus.includes('fail') || renderStatus.includes('error') ? 'alert-danger' : 'alert-info'} mb-4`}>
           <i className="bi bi-info-circle-fill me-2"></i>{renderStatus}
         </div>
 
-        <div className="row justify-content-center">
-          <div className="col-lg-8">
-            {/* Video Upload */}
-            <div className="card mb-4 border-0 shadow-sm">
-              <div className="card-body">
-                <input type="file" ref={fileInputRef} accept="video/*" className="d-none" onChange={handleVideoUpload} />
-                <div className="border border-2 border-dashed rounded-3 p-5 text-center cursor-pointer" onClick={handleClickUpload}>
-                  <i className="bi bi-folder2-open display-4 text-primary-custom mb-3 d-block"></i>
-                  <p className="text-muted mb-0">{videoFile ? videoFile.name : 'Click to select video file'}</p>
-                  {videoFile && <small className="text-muted">Size: {(videoFile.size / (1024 * 1024)).toFixed(2)} MB</small>}
-                </div>
-              </div>
-            </div>
-
-            {/* Render Settings */}
-            <div className="card mb-4 border-0 shadow-sm">
-              <div className="card-header">
-                <i className="bi bi-gear me-2"></i>Render Settings
-              </div>
-              <div className="card-body">
-                {/* Resolution */}
-                <div className="mb-4">
-                  <label className="form-label text-muted"><i className="bi bi-upcscan me-2"></i>Resolution</label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {Object.entries(resolutions).map(([key, val]) => (
-                      <button key={key} onClick={() => setResolution(key)} disabled={isRendering} className={`btn ${resolution === key ? 'btn-primary' : 'btn-outline-secondary'}`}>
-                        {val.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Format */}
-                <div className="mb-4">
-                  <label className="form-label text-muted"><i className="bi bi-file-earmark-code me-2"></i>Format</label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {['mp4', 'webm', 'mov'].map(f => (
-                      <button key={f} onClick={() => setFormat(f)} disabled={isRendering} className={`btn ${format === f ? 'btn-primary' : 'btn-outline-secondary'}`}>
-                        {f.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quality */}
-                <div className="mb-4">
-                  <label className="form-label text-muted"><i className="bi bi-speedometer2 me-2"></i>Quality</label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {Object.entries(qualityPresets).map(([key, val]) => (
-                      <button key={key} onClick={() => setQuality(key)} disabled={isRendering} className={`btn ${quality === key ? 'btn-primary' : 'btn-outline-secondary'}`}>
-                        {val.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* FPS */}
-                <div className="mb-0">
-                  <label className="form-label text-muted"><i className="bi bi-film me-2"></i>Frame Rate (FPS)</label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {fpsOptions.map(f => (
-                      <button key={f} onClick={() => setFps(f)} disabled={isRendering} className={`btn ${fps === f ? 'btn-primary' : 'btn-outline-secondary'}`}>
-                        {f} FPS
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="card mb-4 border-0 shadow-sm">
-              <div className="card-body">
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="text-muted">Status</span>
-                  <span className="text-white fw-bold">{renderStatus}</span>
-                </div>
-                {isRendering && (
-                  <div className="mt-3">
-                    <div className="progress">
-                      <div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: `${progress}%` }}></div>
-                    </div>
-                    <LoadingAnimation type="wave" />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className="card mb-4 border-0 shadow-sm">
-              <div className="card-body text-center">
-                <p className="mb-0 text-muted">
-                  <i className="bi bi-check-circle me-2 text-success"></i>
-                  Output: <span className="text-white fw-bold">{resolution}</span> | 
-                  Format: <span className="text-white fw-bold">{format.toUpperCase()}</span> | 
-                  Quality: <span className="text-white fw-bold">{quality}</span> | 
-                  FPS: <span className="text-white fw-bold">{fps}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Render Button */}
-            <button onClick={startRender} disabled={isRendering || !videoFile} className="btn btn-primary btn-lg w-100 py-3">
-              {isRendering ? (
-                <><i className="bi bi-hourglass-split me-2"></i>Rendering... {progress}%</>
-              ) : (
-                <><i className="bi bi-rocket-takeoff me-2"></i>Start Rendering</>
-              )}
-            </button>
+        {/* Project Summary */}
+        <div className="card mb-4 border-0 shadow-sm">
+          <div className="card-header">
+            <i className="bi bi-check-circle me-2"></i>Project Summary
           </div>
+          <div className="card-body">
+            <div className="row">
+              <div className="col-md-4">
+                <p className="text-muted small mb-1">Video File</p>
+                <p className="text-white">{workflow.videoFile?.name || 'No video'}</p>
+              </div>
+              <div className="col-md-4">
+                <p className="text-muted small mb-1">Subtitles</p>
+                <p className="text-white">{workflow.subtitles?.length || 0} subtitles</p>
+              </div>
+              <div className="col-md-4">
+                <p className="text-muted small mb-1">Video Settings</p>
+                <p className="text-white">{workflow.playbackSpeed || 1}x speed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Video Preview */}
+        {workflow.videoUrl && (
+          <div className="card mb-4 border-0 shadow-sm">
+            <div className="card-header">
+              <i className="bi bi-play-circle me-2"></i>Video Preview
+            </div>
+            <div className="card-body p-0">
+              <div className="bg-black">
+                <video src={workflow.videoUrl} controls className="w-100" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Render Settings */}
+        <div className="card mb-4 border-0 shadow-sm">
+          <div className="card-header">
+            <i className="bi bi-gear me-2"></i>Render Settings
+          </div>
+          <div className="card-body">
+            {/* Resolution */}
+            <div className="mb-4">
+              <label className="form-label text-muted"><i className="bi bi-upcscan me-2"></i>Resolution</label>
+              <div className="d-flex flex-wrap gap-2">
+                {Object.keys(resolutions).map(key => (
+                  <button key={key} onClick={() => setResolution(key)} className={`btn ${resolution === key ? 'btn-primary' : 'btn-outline-secondary'}`}>
+                    {key.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quality */}
+            <div className="mb-4">
+              <label className="form-label text-muted"><i className="bi bi-speedometer2 me-2"></i>Quality</label>
+              <div className="d-flex flex-wrap gap-2">
+                {Object.entries(qualityPresets).map(([key, val]) => (
+                  <button key={key} onClick={() => setQuality(key)} className={`btn ${quality === key ? 'btn-primary' : 'btn-outline-secondary'}`}>
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Format */}
+            <div className="mb-0">
+              <label className="form-label text-muted"><i className="bi bi-file-earmark-code me-2"></i>Format</label>
+              <div className="d-flex flex-wrap gap-2">
+                {['mp4', 'webm', 'mov'].map(f => (
+                  <button key={f} onClick={() => setFormat(f)} className={`btn ${format === f ? 'btn-primary' : 'btn-outline-secondary'}`}>
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Render Button */}
+        <button onClick={handleStartRender} disabled={isRendering || !workflow.videoFile} className="btn btn-success btn-lg w-100 mb-4">
+          {isRendering ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2"></span>
+              Rendering... {progress}%
+            </>
+          ) : (
+            <>
+              <i className="bi bi-rocket-takeoff me-2"></i>Start Rendering
+            </>
+          )}
+        </button>
+
+        {/* Progress */}
+        {isRendering && (
+          <div className="card mb-4 border-0 shadow-sm">
+            <div className="card-body">
+              <div className="progress">
+                <div className="progress-bar bg-success progress-bar-striped progress-bar-animated" style={{ width: `${progress}%` }}></div>
+              </div>
+              <LoadingAnimation type="wave" />
+            </div>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="d-flex justify-content-between">
+          <button onClick={handleBack} className="btn btn-outline-secondary">
+            <i className="bi bi-arrow-left me-2"></i>Back: Subtitles
+          </button>
+          <button onClick={handleNewProject} className="btn btn-outline-primary">
+            <i className="bi bi-plus-lg me-2"></i>New Project
+          </button>
         </div>
       </div>
     </div>
