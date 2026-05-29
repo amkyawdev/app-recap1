@@ -10,9 +10,8 @@ const Dashboard = () => {
   const [projects, setProjects] = useState([])
   const [videos, setVideos] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('projects') // projects | videos
+  const [activeTab, setActiveTab] = useState('projects')
 
-  // Load data from storage
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -53,11 +52,7 @@ const Dashboard = () => {
   }
 
   const handleOpenProject = (project) => {
-    if (project.videoFile) {
-      navigate(`/editor?project=${project.id}`)
-    } else {
-      navigate(`/editor?project=${project.id}`)
-    }
+    navigate(`/editor?project=${project.id}`)
   }
 
   const formatDate = (dateStr) => {
@@ -65,154 +60,175 @@ const Dashboard = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-600'
-      case 'processing':
-        return 'bg-yellow-600'
-      case 'draft':
-        return 'bg-gray-600'
-      default:
-        return 'bg-gray-600'
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-black-custom">
-      {/* Hamburger Menu Button */}
-      <button 
-        onClick={() => setIsMenuOpen(true)}
-        className="fixed top-4 left-4 z-50 w-10 h-10 bg-gray-custom rounded-md hover:bg-red-custom transition-all duration-300 flex items-center justify-center"
-      >
-        <span className="text-xl text-white">☰</span>
-      </button>
+    <div className="min-h-100 bg-dark-custom">
+      {/* Navbar */}
+      <nav className="navbar navbar-dark bg-gray-dark sticky-top">
+        <div className="container-fluid">
+          <button 
+            className="btn btn-outline-secondary" 
+            onClick={() => setIsMenuOpen(true)}
+          >
+            <i className="bi bi-list"></i>
+          </button>
+          <span className="navbar-brand mb-0 h1 text-primary-custom">
+            <i className="bi bi-film me-2"></i>MovieRecap Studio
+          </span>
+          <button 
+            className="btn btn-primary" 
+            onClick={createNewProject}
+          >
+            <i className="bi bi-plus-lg me-2"></i>New Project
+          </button>
+        </div>
+      </nav>
 
-      {/* Overlay */}
+      {/* Sidebar Overlay */}
       {isMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"
+          style={{ zIndex: 1040 }}
           onClick={() => setIsMenuOpen(false)}
         />
       )}
 
-      {/* Side Menu */}
-      <div className={`fixed top-0 left-0 h-full w-64 bg-black-custom bg-opacity-70 backdrop-blur-lg transform transition-transform duration-300 z-50 ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-red-custom text-xl font-bold">Menu</h2>
-            <button onClick={() => setIsMenuOpen(false)} className="text-gray-light hover:text-white">✕</button>
-          </div>
-          <nav className="space-y-2">
-            <Link to="/dashboard" className="block text-gray-light hover:text-red-custom py-2">📊 Dashboard</Link>
-            <Link to="/editor" className="block text-gray-light hover:text-red-custom py-2">🎬 Video Editor</Link>
-            <Link to="/subtitles" className="block text-gray-light hover:text-red-custom py-2">✏️ Subtitles Editor</Link>
-            <Link to="/render" className="block text-gray-light hover:text-red-custom py-2">🎯 Render</Link>
-          </nav>
+      {/* Sidebar */}
+      <div className={`sidebar p-4 ${isMenuOpen ? 'open' : ''}`}>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h4 className="text-primary-custom mb-0">
+            <i className="bi bi-grid-3x3-gap me-2"></i>Menu
+          </h4>
+          <button 
+            className="btn btn-outline-light btn-sm"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
+        <ul className="nav flex-column">
+          <li className="nav-item">
+            <Link to="/dashboard" className="nav-link text-light">
+              <i className="bi bi-house me-3"></i>Dashboard
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link to="/editor" className="nav-link text-light">
+              <i className="bi bi-film me-3"></i>Video Editor
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link to="/subtitles" className="nav-link text-light">
+              <i className="bi bi-type me-3"></i>Subtitles Editor
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link to="/render" className="nav-link text-light">
+              <i className="bi bi-render me-3"></i>Render Output
+            </Link>
+          </li>
+        </ul>
       </div>
 
       {/* Main Content */}
-      <div className="p-8 pt-20 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl text-white font-bold">🎬 MovieRecap Studio</h1>
-          <button 
-            onClick={createNewProject}
-            className="bg-red-custom px-6 py-3 rounded-lg hover:bg-gray-custom transition-all font-bold"
-          >
-            ➕ New Project
-          </button>
-        </div>
-
+      <div className="container py-4">
         {/* Workflow Steps */}
-        <div className="mb-8 bg-gray-dark rounded-lg p-4">
-          <h3 className="text-gray-light mb-4 text-center">📋 Workflow: Video → Subtitles → Render</h3>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/editor" className="flex items-center space-x-2 bg-gray-custom px-4 py-2 rounded hover:bg-red-custom transition">
-              <span>🎬</span>
-              <span className="text-white">1. Video Editor</span>
+        <div className="card mb-4 p-4 animate-fadeIn">
+          <h5 className="card-title text-center text-light-custom mb-3">
+            <i className="bi bi-arrow-right-circle me-2"></i>Workflow: Video → Subtitles → Render
+          </h5>
+          <div className="d-flex flex-wrap justify-content-center gap-3">
+            <Link to="/editor" className="btn btn-secondary">
+              <i className="bi bi-film me-2"></i>1. Video Editor
             </Link>
-            <span className="text-gray-light">→</span>
-            <Link to="/subtitles" className="flex items-center space-x-2 bg-gray-custom px-4 py-2 rounded hover:bg-red-custom transition">
-              <span>✏️</span>
-              <span className="text-white">2. Subtitles</span>
+            <span className="align-self-center text-light-custom">
+              <i className="bi bi-arrow-right"></i>
+            </span>
+            <Link to="/subtitles" className="btn btn-secondary">
+              <i className="bi bi-type me-2"></i>2. Subtitles
             </Link>
-            <span className="text-gray-light">→</span>
-            <Link to="/render" className="flex items-center space-x-2 bg-gray-custom px-4 py-2 rounded hover:bg-red-custom transition">
-              <span>🎯</span>
-              <span className="text-white">3. Render Output</span>
+            <span className="align-self-center text-light-custom">
+              <i className="bi bi-arrow-right"></i>
+            </span>
+            <Link to="/render" className="btn btn-secondary">
+              <i className="bi bi-gpu me-2"></i>3. Render
             </Link>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-4 mb-6">
+        <div className="d-flex gap-3 mb-4">
           <button
             onClick={() => setActiveTab('projects')}
-            className={`px-6 py-2 rounded-lg font-bold ${activeTab === 'projects' ? 'bg-red-custom' : 'bg-gray-custom hover:bg-gray-custom/80'}`}
+            className={`btn ${activeTab === 'projects' ? 'btn-primary' : 'btn-secondary'}`}
           >
-            📁 Projects ({projects.length})
+            <i className="bi bi-folder me-2"></i>Projects ({projects.length})
           </button>
           <button
             onClick={() => setActiveTab('videos')}
-            className={`px-6 py-2 rounded-lg font-bold ${activeTab === 'videos' ? 'bg-red-custom' : 'bg-gray-custom hover:bg-gray-custom/80'}`}
+            className={`btn ${activeTab === 'videos' ? 'btn-primary' : 'btn-secondary'}`}
           >
-            🎬 Videos ({videos.length})
+            <i className="bi bi-camera-video me-2"></i>Videos ({videos.length})
           </button>
         </div>
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="flex justify-center py-12">
+          <div className="text-center py-5">
             <LoadingAnimation type="wave" />
           </div>
         ) : (
           <>
             {/* Projects List */}
             {activeTab === 'projects' && (
-              <div className="space-y-4">
+              <div className="row g-4">
                 {projects.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-dark rounded-lg">
-                    <div className="text-4xl mb-4">📁</div>
-                    <p className="text-gray-light">No projects yet</p>
-                    <button 
-                      onClick={createNewProject}
-                      className="mt-4 bg-red-custom px-6 py-2 rounded-lg hover:bg-gray-custom"
-                    >
-                      Create First Project
-                    </button>
+                  <div className="col-12">
+                    <div className="card text-center py-5">
+                      <i className="bi bi-folder-plus display-1 text-light-custom mb-3"></i>
+                      <p className="text-light-custom">No projects yet</p>
+                      <button 
+                        className="btn btn-primary"
+                        onClick={createNewProject}
+                      >
+                        <i className="bi bi-plus-lg me-2"></i>Create First Project
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   projects.map(project => (
-                    <div 
-                      key={project.id}
-                      className="bg-gray-dark p-4 rounded-lg hover:bg-gray-custom transition cursor-pointer"
-                      onClick={() => handleOpenProject(project)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="flex-1">
-                          <h3 className="text-white text-lg font-bold">{project.name}</h3>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-light">
-                            <span>📅 {formatDate(project.createdAt)}</span>
-                            {project.videoFile && (
-                              <span>🎬 {project.videoFile.name}</span>
-                            )}
-                            {project.subtitles?.length > 0 && (
-                              <span>✏️ {project.subtitles.length} subtitles</span>
-                            )}
-                          </div>
+                    <div key={project.id} className="col-md-6 col-lg-4">
+                      <div className="card h-100 project-card" onClick={() => handleOpenProject(project)}>
+                        <div className="card-body">
+                          <h5 className="card-title">
+                            <i className="bi bi-folder-fill text-warning me-2"></i>
+                            {project.name}
+                          </h5>
+                          <p className="card-text text-light-custom small">
+                            <i className="bi bi-calendar3 me-2"></i>
+                            {formatDate(project.createdAt)}
+                          </p>
+                          {project.videoFile && (
+                            <p className="card-text text-light-custom small">
+                              <i className="bi bi-film me-2"></i>
+                              {project.videoFile.name}
+                            </p>
+                          )}
+                          {project.subtitles?.length > 0 && (
+                            <p className="card-text text-light-custom small">
+                              <i className="bi bi-type me-2"></i>
+                              {project.subtitles.length} subtitles
+                            </p>
+                          )}
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <span className={`px-3 py-1 rounded text-xs font-bold ${getStatusBadge(project.status)}`}>
+                        <div className="card-footer bg-transparent border-top-0 d-flex justify-content-between">
+                          <span className={`badge ${project.status === 'completed' ? 'bg-success' : project.status === 'processing' ? 'bg-warning' : 'bg-secondary'}`}>
                             {project.status?.toUpperCase() || 'DRAFT'}
                           </span>
-                          {project.status === 'processing' && <LoadingAnimation type="wave" />}
                           <button 
+                            className="btn btn-danger btn-sm"
                             onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id) }}
-                            className="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700"
                           >
-                            🗑️
+                            <i className="bi bi-trash"></i>
                           </button>
                         </div>
                       </div>
@@ -224,33 +240,46 @@ const Dashboard = () => {
 
             {/* Videos List */}
             {activeTab === 'videos' && (
-              <div className="space-y-4">
+              <div className="row g-4">
                 {videos.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-dark rounded-lg">
-                    <div className="text-4xl mb-4">🎬</div>
-                    <p className="text-gray-light">No videos processed yet</p>
-                    <Link to="/editor" className="mt-4 bg-red-custom px-6 py-2 rounded-lg hover:bg-gray-custom inline-block">
-                      Go to Video Editor
-                    </Link>
+                  <div className="col-12">
+                    <div className="card text-center py-5">
+                      <i className="bi bi-camera-video display-1 text-light-custom mb-3"></i>
+                      <p className="text-light-custom">No videos processed yet</p>
+                      <Link to="/editor" className="btn btn-primary">
+                        <i className="bi bi-film me-2"></i>Go to Video Editor
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   videos.map(video => (
-                    <div 
-                      key={video.id}
-                      className="bg-gray-dark p-4 rounded-lg hover:bg-gray-custom transition"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-white text-lg font-bold">{video.fileName}</h3>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-light">
-                            <span>📅 {formatDate(video.createdAt)}</span>
-                            {video.duration && <span>⏱️ {video.duration}s</span>}
-                            {video.size && <span>💾 {(video.size / (1024 * 1024)).toFixed(2)} MB</span>}
-                          </div>
+                    <div key={video.id} className="col-md-6 col-lg-4">
+                      <div className="card">
+                        <div className="card-body">
+                          <h5 className="card-title">
+                            <i className="bi bi-film text-primary-custom me-2"></i>
+                            {video.fileName}
+                          </h5>
+                          <p className="card-text text-light-custom small">
+                            <i className="bi bi-calendar3 me-2"></i>
+                            {formatDate(video.createdAt)}
+                          </p>
+                          {video.duration && (
+                            <p className="card-text text-light-custom small">
+                              <i className="bi bi-clock me-2"></i>
+                              {video.duration}s
+                            </p>
+                          )}
+                          {video.size && (
+                            <p className="card-text text-light-custom small">
+                              <i className="bi bi-hdd me-2"></i>
+                              {(video.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          )}
                         </div>
-                        <div className="flex space-x-2">
-                          <button className="bg-gray-custom px-3 py-1 rounded text-sm hover:bg-red-custom">
-                            ▶️ Open
+                        <div className="card-footer bg-transparent border-top-0">
+                          <button className="btn btn-primary w-100">
+                            <i className="bi bi-play-fill me-2"></i>Open
                           </button>
                         </div>
                       </div>

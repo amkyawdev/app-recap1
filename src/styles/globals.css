@@ -2,18 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+:root {
+  --primary: #DC2626;
+  --secondary: #374151;
+  --dark: #111827;
+  --light: #9CA3AF;
+  --gray-dark: #1F2937;
 }
 
 body {
-  background-color: #111827;
+  background-color: var(--dark);
   color: white;
-  font-family: sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
+/* Custom Classes for Bootstrap Integration */
+.text-primary-custom {
+  color: var(--primary) !important;
+}
+
+.text-light-custom {
+  color: var(--light) !important;
+}
+
+.bg-dark-custom {
+  background-color: var(--dark);
+}
+
+.bg-gray-dark {
+  background-color: var(--gray-dark);
+}
+
+.bg-gray-custom {
+  background-color: var(--secondary);
+}
+
+/* Animations */
 .animate-fadeIn {
   animation: fadeIn 1s ease-in-out;
 }
@@ -23,11 +47,44 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-wave {
-  animation: wave 1s ease-in-out infinite;
+/* Subtitle Item */
+.subtitle-item {
+  background: var(--secondary);
+  border-radius: 10px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
 }
 
-@keyframes wave {
-  0%, 100% { height: 10px; }
-  50% { height: 40px; }
+.subtitle-item:hover {
+  background: #4b5563;
+}
+
+.subtitle-item.active {
+  border-left-color: var(--primary);
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.subtitle-item.current {
+  border-left-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 280px;
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(20px);
+  z-index: 1000;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.sidebar.open {
+  transform: translateX(0);
 }

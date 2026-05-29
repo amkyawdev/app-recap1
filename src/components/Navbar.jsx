@@ -1,13 +1,23 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 
 const Navbar = () => {
   return (
-    <nav className="bg-gray-dark py-4 px-6 flex justify-between items-center">
-      <Link to="/" className="text-red-custom text-xl font-bold">MovieRecap Studio</Link>
-      <div className="flex space-x-4">
-        <Link to="/dashboard" className="text-gray-light hover:text-white">Dashboard</Link>
-        <Link to="/editor" className="text-gray-light hover:text-white">Editor</Link>
+    <nav className="navbar navbar-dark bg-gray-dark sticky-top">
+      <div className="container-fluid">
+        <span className="navbar-brand mb-0 h1 text-primary-custom">
+          <i className="bi bi-film me-2"></i>MovieRecap Studio
+        </span>
+        <div className="d-flex gap-2">
+          <a className="btn btn-sm btn-outline-light" href="/dashboard">
+            <i className="bi bi-house me-1"></i>Dashboard
+          </a>
+          <a className="btn btn-sm btn-outline-light" href="/editor">
+            <i className="bi bi-film me-1"></i>Editor
+          </a>
+          <a className="btn btn-sm btn-outline-light" href="/render">
+            <i className="bi bi-gpu me-1"></i>Render
+          </a>
+        </div>
       </div>
     </nav>
   )
