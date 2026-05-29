@@ -129,6 +129,67 @@ const SubtitlesEditor = () => {
     setProcessingStatus('SRT exported!')
   }
 
+  // Handle SRT file upload
+  const handleSRTUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const content = event.target.result
+        const parsed = parseSRT(content)
+        if (parsed.length > 0) {
+          const updated = [...subtitles, ...parsed]
+          setSubtitles(updated)
+          updateSubtitles(updated)
+          setProcessingStatus(`Imported ${parsed.length} subtitles from SRT`)
+        } else {
+          setProcessingStatus('No valid subtitles found in file')
+        }
+      } catch (error) {
+        setProcessingStatus('Failed to parse SRT file')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  // Parse SRT content to subtitles array
+  const parseSRT = (content) => {
+    const blocks = content.trim().split(/\n\n+/)
+    const parsed = []
+    let id = nextId.current
+
+    for (const block of blocks) {
+      const lines = block.split('\n')
+      if (lines.length < 3) continue
+
+      const timeLine = lines[1]
+      const timeMatch = timeLine.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/)
+      if (!timeMatch) continue
+
+      const start = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]) + parseInt(timeMatch[4]) / 1000
+      const end = parseInt(timeMatch[5]) * 3600 + parseInt(timeMatch[6]) * 60 + parseInt(timeMatch[7]) + parseInt(timeMatch[8]) / 1000
+      const text = lines.slice(2).join('\n').replace(/<[^>]+>/g, '')
+
+      parsed.push({
+        id: id++,
+        start,
+        end,
+        text,
+        style: {
+          fontSize: 24,
+          fontColor: '#FFFFFF',
+          fontWeight: 'normal',
+          backgroundColor: 'rgba(0,0,0,0.7)'
+        }
+      })
+    }
+    nextId.current = id
+    return parsed
+  }
+
   const handleNext = () => {
     updateVideo({ videoFile, videoUrl })
     updateSubtitles(subtitles)
@@ -216,6 +277,10 @@ const SubtitlesEditor = () => {
                         <button onClick={addSubtitle} className="btn btn-success btn-sm">
                           <i className="bi bi-plus-lg me-1"></i>Add Sub
                         </button>
+                        <label className="btn btn-outline-info btn-sm mb-0" style={{ cursor: 'pointer' }}>
+                          <i className="bi bi-upload me-1"></i>Import SRT
+                          <input type="file" accept=".srt,.txt" onChange={handleSRTUpload} style={{ display: 'none' }} />
+                        </label>
                         <button onClick={handleExportSRT} className="btn btn-outline-secondary btn-sm">
                           <i className="bi bi-download me-1"></i>Export SRT
                         </button>

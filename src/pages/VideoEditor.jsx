@@ -247,6 +247,12 @@ const VideoEditor = () => {
                   <span>{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
                 </div>
 
+                <div className="d-flex justify-content-center mb-3">
+                  <button onClick={handleClickUpload} className="btn btn-outline-primary btn-sm">
+                    <i className="bi bi-arrow-repeat me-1"></i>Re-upload Video
+                  </button>
+                </div>
+
                 <div className="d-flex flex-wrap justify-content-center gap-2 mb-3">
                   <button onClick={() => handleSeek(0)} className="btn btn-secondary btn-sm"><i className="bi bi-skip-backward"></i></button>
                   <button onClick={() => handleSeek(currentTime - 5)} className="btn btn-secondary btn-sm"><i className="bi bi-arrow-left"></i> 5s</button>
