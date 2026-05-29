@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import React from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Layout from './components/Layout'
+import InstallPrompt from './components/InstallPrompt'
 import GetStarted from './pages/GetStarted'
 import Dashboard from './pages/Dashboard'
 import VideoEditor from './pages/VideoEditor'
@@ -9,7 +11,8 @@ import RenderPage from './pages/RenderPage'
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-black-custom">
+      <InstallPrompt />
+      <Layout>
         <Routes>
           <Route path="/" element={<GetStarted />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -17,7 +20,7 @@ function App() {
           <Route path="/subtitles" element={<SubtitlesEditor />} />
           <Route path="/render" element={<RenderPage />} />
         </Routes>
-      </div>
+      </Layout>
     </BrowserRouter>
   )
 }
