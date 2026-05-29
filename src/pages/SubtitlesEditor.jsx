@@ -38,6 +38,17 @@ const SubtitlesEditor = () => {
     initFFmpeg()
   }, [])
 
+  // Sync with workflow context when returning from other pages
+  useEffect(() => {
+    if (workflow.videoFile) {
+      setVideoFile(workflow.videoFile)
+      setVideoUrl(workflow.videoUrl)
+    }
+    if (workflow.subtitles && workflow.subtitles.length > 0) {
+      setSubtitles(workflow.subtitles)
+    }
+  }, [workflow.videoFile, workflow.subtitles])
+
   const handleTimeUpdate = (e) => {
     const time = e.target.currentTime
     setCurrentTime(time)
@@ -62,16 +73,22 @@ const SubtitlesEditor = () => {
         backgroundColor: 'rgba(0,0,0,0.7)'
       }
     }
-    setSubtitles([...subtitles, newSub])
+    const updated = [...subtitles, newSub]
+    setSubtitles(updated)
+    updateSubtitles(updated)
     setSelectedSubId(newSub.id)
   }
 
   const updateSubtitle = (id, updates) => {
-    setSubtitles(subtitles.map(sub => sub.id === id ? { ...sub, ...updates } : sub))
+    const updated = subtitles.map(sub => sub.id === id ? { ...sub, ...updates } : sub)
+    setSubtitles(updated)
+    updateSubtitles(updated)
   }
 
   const deleteSubtitle = (id) => {
-    setSubtitles(subtitles.filter(sub => sub.id !== id))
+    const updated = subtitles.filter(sub => sub.id !== id)
+    setSubtitles(updated)
+    updateSubtitles(updated)
     if (selectedSubId === id) setSelectedSubId(null)
   }
 

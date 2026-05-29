@@ -47,6 +47,18 @@ const VideoEditor = () => {
     initFFmpeg()
   }, [])
 
+  // Sync with workflow context when returning from other pages
+  useEffect(() => {
+    if (workflow.videoFile) {
+      setVideoFile(workflow.videoFile)
+      setVideoUrl(workflow.videoUrl)
+      setTrimStart(workflow.trimStart || 0)
+      setTrimEnd(workflow.trimEnd || 0)
+      setPlaybackSpeed(workflow.playbackSpeed || 1)
+      setVolume(workflow.volume || 1)
+    }
+  }, [workflow.videoFile])
+
   const handleFileSelect = async (file) => {
     if (!file) return
     setIsUploading(true)

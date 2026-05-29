@@ -36,6 +36,16 @@ const RenderPage = () => {
     initFFmpeg()
   }, [])
 
+  // Sync with workflow context when returning from other pages
+  useEffect(() => {
+    if (workflow.videoFile) {
+      setResolution(workflow.renderSettings?.resolution || '1080p')
+      setFormat(workflow.renderSettings?.format || 'mp4')
+      setQuality(workflow.renderSettings?.quality || 'high')
+      setFps(workflow.renderSettings?.fps || 30)
+    }
+  }, [workflow.videoFile])
+
   const resolutions = {
     '4k': { width: 3840, height: 2160 },
     '1080p': { width: 1920, height: 1080 },
