@@ -1,0 +1,17 @@
+{
+  "name": "MovieRecap Studio",
+  "short_name": "MovieRecap",
+  "description": "A modern video and subtitle editor application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#DC2626",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
