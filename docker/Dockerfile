@@ -1,12 +1,14 @@
 FROM node:18-alpine
 
-# Install FFmpeg
+# Install FFmpeg and required dependencies
 RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+
+# Install dependencies including @ffmpeg/ffmpeg
 RUN npm install
 
 # Copy source code
@@ -18,6 +20,8 @@ RUN npm run build
 # Install serve to run the build
 RUN npm install -g serve
 
+# Expose port
 EXPOSE 3000
 
+# Start the app
 CMD ["serve", "-s", "build", "-l", "3000"]
