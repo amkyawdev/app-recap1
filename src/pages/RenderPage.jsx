@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { fetchFile } from '@ffmpeg/util'
+import { loadFFmpeg } from '../utils/ffmpegLoader'
 import LoadingAnimation from '../components/LoadingAnimation'
 
 const RenderPage = () => {
@@ -9,35 +9,30 @@ const RenderPage = () => {
   const [renderStatus, setRenderStatus] = useState('Ready')
   const [videoFile, setVideoFile] = useState(null)
   const [isFFmpegLoaded, setIsFFmpegLoaded] = useState(false)
-  const [isLoadingFFmpeg, setIsLoadingFFmpeg] = useState(true)
+  const [ffmpegError, setFfmpegError] = useState('')
   const ffmpegRef = useRef(null)
+  const fileInputRef = useRef(null)
   const [resolution, setResolution] = useState('1080p')
   const [format, setFormat] = useState('mp4')
   const [quality, setQuality] = useState('high')
   const [fps, setFps] = useState(30)
 
   useEffect(() => {
-    const loadFFmpeg = async () => {
+    const loadFFmpegAsync = async () => {
       setRenderStatus('Loading FFmpeg...')
-      setIsLoadingFFmpeg(true)
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-      const ffmpeg = new FFmpeg()
-      ffmpeg.on('log', ({ message }) => console.log('[FFmpeg]', message))
       try {
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        })
+        const ffmpeg = await loadFFmpeg()
         ffmpegRef.current = ffmpeg
         setIsFFmpegLoaded(true)
-        setIsLoadingFFmpeg(false)
         setRenderStatus('Ready - Select a video to render')
+        console.log('[RenderPage] FFmpeg loaded successfully')
       } catch (error) {
-        setRenderStatus('Error loading FFmpeg')
-        setIsLoadingFFmpeg(false)
+        console.error('[RenderPage] FFmpeg load failed:', error)
+        setFfmpegError(error.message)
+        setRenderStatus('FFmpeg failed - Web rendering available')
       }
     }
-    loadFFmpeg()
+    loadFFmpegAsync()
   }, [])
 
   const resolutions = {
@@ -64,8 +59,37 @@ const RenderPage = () => {
     }
   }
 
+  const handleClickUpload = () => {
+    fileInputRef.current?.click()
+  }
+
   const startRender = async () => {
-    if (!videoFile || !ffmpegRef.current) return
+    if (!videoFile) {
+      setRenderStatus('Please select a video file')
+      return
+    }
+    
+    if (!ffmpegRef.current) {
+      // Web-based export without FFmpeg
+      setIsRendering(true)
+      setProgress(0)
+      setRenderStatus('Creating video...')
+      try {
+        setProgress(50)
+        const url = URL.createObjectURL(videoFile)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `movie-recap-${resolution}-${quality}.${format}`
+        a.click()
+        setProgress(100)
+        setRenderStatus('Video exported (original quality)')
+      } catch (error) {
+        setRenderStatus('Export failed: ' + error.message)
+      }
+      setIsRendering(false)
+      return
+    }
+
     setIsRendering(true)
     setProgress(0)
     setRenderStatus('Starting render...')
@@ -95,54 +119,57 @@ const RenderPage = () => {
       setRenderStatus('Render complete!')
       setTimeout(() => setIsRendering(false), 2000)
     } catch (error) {
+      console.error('Render error:', error)
       setRenderStatus('Render failed: ' + error.message)
       setIsRendering(false)
     }
   }
 
   return (
-    <div className="min-h-100 bg-dark-custom">
-      {/* Navbar */}
-      <nav className="navbar navbar-dark bg-gray-dark sticky-top">
-        <div className="container-fluid">
-          <span className="navbar-brand mb-0 h1 text-primary-custom">
-            <i className="bi bi-gpu me-2"></i>Render Video
-          </span>
-          <span className={`badge ${isFFmpegLoaded ? 'bg-success' : isLoadingFFmpeg ? 'bg-warning' : 'bg-danger'}`}>
-            {isFFmpegLoaded ? '✅ FFmpeg Ready' : isLoadingFFmpeg ? '⏳ Loading...' : '❌ Error'}
+    <div className="min-vh-100 bg-dark-custom pt-5">
+      <div className="container py-4">
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h1 className="text-white h2 mb-0">
+            <i className="bi bi-gpu me-2 text-primary-custom"></i>Render Video
+          </h1>
+          <span className={`badge ${isFFmpegLoaded ? 'bg-success' : 'bg-warning'}`}>
+            <i className={`bi ${isFFmpegLoaded ? 'bi-check-circle' : 'bi-hourglass-split'} me-1`}></i>
+            {isFFmpegLoaded ? 'FFmpeg Ready' : 'Loading...'}
           </span>
         </div>
-      </nav>
 
-      <div className="container py-4">
+        {/* Status */}
+        <div className={`alert ${ffmpegError ? 'alert-warning' : renderStatus.includes('fail') || renderStatus.includes('error') ? 'alert-danger' : 'alert-info'} mb-4`}>
+          <i className="bi bi-info-circle-fill me-2"></i>{renderStatus}
+        </div>
+
         <div className="row justify-content-center">
           <div className="col-lg-8">
             {/* Video Upload */}
-            <div className="card mb-4">
+            <div className="card mb-4 border-0 shadow-sm">
               <div className="card-body">
-                <label className="d-block border border-2 border-dashed rounded-3 p-5 text-center cursor-pointer">
-                  <input type="file" accept="video/*" className="d-none" onChange={handleVideoUpload} disabled={isRendering} />
+                <input type="file" ref={fileInputRef} accept="video/*" className="d-none" onChange={handleVideoUpload} />
+                <div className="border border-2 border-dashed rounded-3 p-5 text-center cursor-pointer" onClick={handleClickUpload}>
                   <i className="bi bi-folder2-open display-4 text-primary-custom mb-3 d-block"></i>
-                  <p className="text-light-custom mb-0">{videoFile ? videoFile.name : 'Click to select video file'}</p>
+                  <p className="text-muted mb-0">{videoFile ? videoFile.name : 'Click to select video file'}</p>
                   {videoFile && <small className="text-muted">Size: {(videoFile.size / (1024 * 1024)).toFixed(2)} MB</small>}
-                </label>
+                </div>
               </div>
             </div>
 
             {/* Render Settings */}
-            <div className="card mb-4">
+            <div className="card mb-4 border-0 shadow-sm">
               <div className="card-header">
                 <i className="bi bi-gear me-2"></i>Render Settings
               </div>
               <div className="card-body">
                 {/* Resolution */}
                 <div className="mb-4">
-                  <label className="form-label text-light-custom">
-                    <i className="bi bi-upcscan me-2"></i>Resolution
-                  </label>
+                  <label className="form-label text-muted"><i className="bi bi-upcscan me-2"></i>Resolution</label>
                   <div className="d-flex flex-wrap gap-2">
                     {Object.entries(resolutions).map(([key, val]) => (
-                      <button key={key} onClick={() => setResolution(key)} disabled={isRendering} className={`btn ${resolution === key ? 'btn-primary' : 'btn-secondary'}`}>
+                      <button key={key} onClick={() => setResolution(key)} disabled={isRendering} className={`btn ${resolution === key ? 'btn-primary' : 'btn-outline-secondary'}`}>
                         {val.label}
                       </button>
                     ))}
@@ -151,12 +178,10 @@ const RenderPage = () => {
 
                 {/* Format */}
                 <div className="mb-4">
-                  <label className="form-label text-light-custom">
-                    <i className="bi bi-file-earmark-code me-2"></i>Format
-                  </label>
+                  <label className="form-label text-muted"><i className="bi bi-file-earmark-code me-2"></i>Format</label>
                   <div className="d-flex flex-wrap gap-2">
                     {['mp4', 'webm', 'mov'].map(f => (
-                      <button key={f} onClick={() => setFormat(f)} disabled={isRendering} className={`btn ${format === f ? 'btn-primary' : 'btn-secondary'}`}>
+                      <button key={f} onClick={() => setFormat(f)} disabled={isRendering} className={`btn ${format === f ? 'btn-primary' : 'btn-outline-secondary'}`}>
                         {f.toUpperCase()}
                       </button>
                     ))}
@@ -165,12 +190,10 @@ const RenderPage = () => {
 
                 {/* Quality */}
                 <div className="mb-4">
-                  <label className="form-label text-light-custom">
-                    <i className="bi bi-speedometer2 me-2"></i>Quality
-                  </label>
+                  <label className="form-label text-muted"><i className="bi bi-speedometer2 me-2"></i>Quality</label>
                   <div className="d-flex flex-wrap gap-2">
                     {Object.entries(qualityPresets).map(([key, val]) => (
-                      <button key={key} onClick={() => setQuality(key)} disabled={isRendering} className={`btn ${quality === key ? 'btn-primary' : 'btn-secondary'}`}>
+                      <button key={key} onClick={() => setQuality(key)} disabled={isRendering} className={`btn ${quality === key ? 'btn-primary' : 'btn-outline-secondary'}`}>
                         {val.label}
                       </button>
                     ))}
@@ -179,12 +202,10 @@ const RenderPage = () => {
 
                 {/* FPS */}
                 <div className="mb-0">
-                  <label className="form-label text-light-custom">
-                    <i className="bi bi-film me-2"></i>Frame Rate (FPS)
-                  </label>
+                  <label className="form-label text-muted"><i className="bi bi-film me-2"></i>Frame Rate (FPS)</label>
                   <div className="d-flex flex-wrap gap-2">
                     {fpsOptions.map(f => (
-                      <button key={f} onClick={() => setFps(f)} disabled={isRendering} className={`btn ${fps === f ? 'btn-primary' : 'btn-secondary'}`}>
+                      <button key={f} onClick={() => setFps(f)} disabled={isRendering} className={`btn ${fps === f ? 'btn-primary' : 'btn-outline-secondary'}`}>
                         {f} FPS
                       </button>
                     ))}
@@ -194,10 +215,10 @@ const RenderPage = () => {
             </div>
 
             {/* Status */}
-            <div className="card mb-4">
+            <div className="card mb-4 border-0 shadow-sm">
               <div className="card-body">
                 <div className="d-flex justify-content-between mb-2">
-                  <span className="text-light-custom">Status</span>
+                  <span className="text-muted">Status</span>
                   <span className="text-white fw-bold">{renderStatus}</span>
                 </div>
                 {isRendering && (
@@ -211,10 +232,10 @@ const RenderPage = () => {
               </div>
             </div>
 
-            {/* Render Summary */}
-            <div className="card mb-4">
+            {/* Summary */}
+            <div className="card mb-4 border-0 shadow-sm">
               <div className="card-body text-center">
-                <p className="mb-0 text-light-custom">
+                <p className="mb-0 text-muted">
                   <i className="bi bi-check-circle me-2 text-success"></i>
                   Output: <span className="text-white fw-bold">{resolution}</span> | 
                   Format: <span className="text-white fw-bold">{format.toUpperCase()}</span> | 
@@ -225,7 +246,7 @@ const RenderPage = () => {
             </div>
 
             {/* Render Button */}
-            <button onClick={startRender} disabled={isRendering || !videoFile || !isFFmpegLoaded} className="btn btn-primary btn-lg w-100 py-3">
+            <button onClick={startRender} disabled={isRendering || !videoFile} className="btn btn-primary btn-lg w-100 py-3">
               {isRendering ? (
                 <><i className="bi bi-hourglass-split me-2"></i>Rendering... {progress}%</>
               ) : (

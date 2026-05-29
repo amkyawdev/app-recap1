@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { fetchFile } from '@ffmpeg/util'
+import { loadFFmpeg } from '../utils/ffmpegLoader'
 import LoadingAnimation from '../components/LoadingAnimation'
 import Timeline from '../components/Timeline'
 
@@ -20,6 +20,7 @@ const VideoEditor = () => {
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingStatus, setProcessingStatus] = useState('')
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
+  const [ffmpegError, setFfmpegError] = useState('')
   const [dragOver, setDragOver] = useState(false)
   
   const ffmpegRef = useRef(null)
@@ -29,19 +30,16 @@ const VideoEditor = () => {
   useEffect(() => {
     const initFFmpeg = async () => {
       setProcessingStatus('Loading FFmpeg...')
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-      const ffmpeg = new FFmpeg()
-      ffmpeg.on('log', ({ message }) => console.log('[FFmpeg]', message))
       try {
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        })
+        const ffmpeg = await loadFFmpeg()
         ffmpegRef.current = ffmpeg
         setFfmpegLoaded(true)
         setProcessingStatus('Ready - Upload a video to start')
+        console.log('[VideoEditor] FFmpeg loaded successfully')
       } catch (error) {
-        setProcessingStatus('FFmpeg load failed')
+        console.error('[VideoEditor] FFmpeg load failed:', error)
+        setFfmpegError(error.message)
+        setProcessingStatus('FFmpeg failed to load - Upload still works')
       }
     }
     initFFmpeg()
@@ -61,7 +59,7 @@ const VideoEditor = () => {
       setTrimStart(0)
       setProcessingStatus('Video loaded - Ready for editing')
     } catch (error) {
-      setProcessingStatus('Error loading video')
+      setProcessingStatus('Error loading video: ' + error.message)
     }
     setIsUploading(false)
   }
@@ -116,7 +114,10 @@ const VideoEditor = () => {
   }
 
   const handleTrimVideo = async () => {
-    if (!videoFile || !ffmpegRef.current) return
+    if (!videoFile || !ffmpegRef.current) {
+      setProcessingStatus('FFmpeg not ready or no video selected')
+      return
+    }
     setIsProcessing(true)
     setProcessingProgress(0)
     setProcessingStatus('Trimming video...')
@@ -138,12 +139,18 @@ const VideoEditor = () => {
       setTrimStart(0)
       setProcessingProgress(100)
       setProcessingStatus('Trim complete!')
-    } catch (error) { setProcessingStatus('Trim failed') }
+    } catch (error) {
+      console.error('Trim error:', error)
+      setProcessingStatus('Trim failed: ' + error.message)
+    }
     setIsProcessing(false)
   }
 
   const handleExport = async () => {
-    if (!videoFile || !ffmpegRef.current) return
+    if (!videoFile || !ffmpegRef.current) {
+      setProcessingStatus('FFmpeg not ready or no video selected')
+      return
+    }
     setIsProcessing(true)
     setProcessingProgress(0)
     setProcessingStatus('Exporting video...')
@@ -162,14 +169,11 @@ const VideoEditor = () => {
       a.click()
       setProcessingProgress(100)
       setProcessingStatus('Export complete!')
-    } catch (error) { setProcessingStatus('Export failed') }
+    } catch (error) {
+      console.error('Export error:', error)
+      setProcessingStatus('Export failed: ' + error.message)
+    }
     setIsProcessing(false)
-  }
-
-  const formatTime = (time) => {
-    const mins = Math.floor(time / 60)
-    const secs = Math.floor(time % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   const tools = [
@@ -195,7 +199,7 @@ const VideoEditor = () => {
         </div>
 
         {/* Status Alert */}
-        <div className={`alert ${processingStatus.includes('fail') ? 'alert-danger' : 'alert-info'} mb-4`}>
+        <div className={`alert ${ffmpegError ? 'alert-warning' : processingStatus.includes('fail') || processingStatus.includes('error') || processingStatus.includes('failed') ? 'alert-danger' : 'alert-info'} mb-4`}>
           <i className="bi bi-info-circle-fill me-2"></i>{processingStatus}
         </div>
 
@@ -300,7 +304,7 @@ const VideoEditor = () => {
                       <input type="number" value={trimEnd} onChange={(e) => setTrimEnd(Math.min(duration, parseFloat(e.target.value) || 0))} min="0" max={duration} className="form-control bg-dark text-white border-secondary" />
                     </div>
                   </div>
-                  <button onClick={handleTrimVideo} disabled={isProcessing} className="btn btn-primary mt-3"><i className="bi bi-scissors me-2"></i>{isProcessing ? 'Processing...' : 'Trim Video'}</button>
+                  <button onClick={handleTrimVideo} disabled={isProcessing || !ffmpegLoaded} className="btn btn-primary mt-3"><i className="bi bi-scissors me-2"></i>{isProcessing ? 'Processing...' : 'Trim Video'}</button>
                 </>
               )}
               {activeTool === 'speed' && (
@@ -324,7 +328,7 @@ const VideoEditor = () => {
                 <>
                   <h5 className="text-primary-custom mb-3"><i className="bi bi-download me-2"></i>Export Settings</h5>
                   <p className="text-muted">Export trimmed video at 1080p resolution</p>
-                  <button onClick={handleExport} disabled={isProcessing} className="btn btn-success"><i className="bi bi-download me-2"></i>{isProcessing ? 'Exporting...' : 'Export Video'}</button>
+                  <button onClick={handleExport} disabled={isProcessing || !ffmpegLoaded} className="btn btn-success"><i className="bi bi-download me-2"></i>{isProcessing ? 'Exporting...' : 'Export Video'}</button>
                 </>
               )}
             </div>
